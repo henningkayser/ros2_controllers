@@ -225,11 +225,13 @@ controller_interface::return_type DiffDriveController::update_reference_from_sub
 controller_interface::return_type DiffDriveController::update_and_write_commands(
   const rclcpp::Time & time, const rclcpp::Duration & period)
 {
-  // Compute and set the linear velocity and direction, copy the angular velocity command
+  // Compute and set the linear velocity and direction, copy the angular velocity command.
+  // The velocity angle can converge significantly from the current direction if theta is non-zero.
+  // The backward flag allows for M_PI_2 tolerance between these angles.
   const double vel_angle = std::atan2(reference_interfaces_[1], reference_interfaces_[0]);
-  const bool forward = std::fmod(odometry_.getHeading() - vel_angle, 2 * M_PI) < 0.05;
+  const bool backward = std::abs(std::abs(odometry_.getHeading() - vel_angle) - M_PI) < M_PI_2;
   const double linear_command =
-    std::hypot(reference_interfaces_[0], reference_interfaces_[1]) * (forward ? 1 : -1);
+    std::hypot(reference_interfaces_[0], reference_interfaces_[1]) * (backward ? -1 : 1);
   const double angular_command = reference_interfaces_[2];
 
   previous_update_timestamp_ = time;
